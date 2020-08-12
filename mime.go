@@ -139,10 +139,9 @@ func (m *MailYak) writeBody(w io.Writer, boundary string) error {
 			return
 		}
 
-		c := fmt.Sprintf("%s; charset=UTF-8", ctype)
-
+		c := fmt.Sprintf(`%s; charset="utf-8"`, ctype)
 		var part io.Writer
-		part, err = alt.CreatePart(textproto.MIMEHeader{"Content-Type": {c}, "Content-Transfer-Encoding": {"quoted-printable"}})
+		part, err = alt.CreatePart(textproto.MIMEHeader{"MIME-Version": {"1.0"}, "Content-Transfer-Encoding": {"8bit"}, "Content-Type": {c}})
 		if err != nil {
 			return
 		}
