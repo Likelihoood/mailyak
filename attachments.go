@@ -20,10 +20,12 @@ type writeWrapper interface {
 }
 
 type attachment struct {
-	filename string
-	content  io.Reader
-	inline   bool
-	mimeType string
+	filename      string
+	cid           string
+	content       io.Reader
+	isXAttachment bool
+	inline        bool
+	mimeType      string
 }
 
 // Attach adds the contents of r to the email as an attachment with name as the
@@ -92,6 +94,17 @@ func (m *MailYak) AttachInlineWithMimeType(name string, r io.Reader, mimeType st
 	})
 }
 
+func (m *MailYak) AttachXAttachmentWithMimeType(name string, r io.Reader, cid, mimeType string) {
+	m.attachments = append(m.attachments, attachment{
+		isXAttachment: true,
+		filename:      name,
+		cid:           cid,
+		content:       r,
+		inline:        false,
+		mimeType:      mimeType,
+	})
+}
+
 // ClearAttachments removes all current attachments.
 func (m *MailYak) ClearAttachments() {
 	m.attachments = []attachment{}
@@ -112,7 +125,7 @@ func (m *MailYak) writeAttachments(mixed partCreator, splitter writeWrapper) err
 			item.mimeType = http.DetectContentType(h[:hLen])
 		}
 
-		ctype := fmt.Sprintf("%s;\n\tfilename=%q", item.mimeType, item.filename)
+		ctype := fmt.Sprintf("%s; filename=%q", item.mimeType, item.filename)
 
 		part, err := mixed.CreatePart(getMIMEHeader(item, ctype))
 		if err != nil {
@@ -142,6 +155,20 @@ func (m *MailYak) writeAttachments(mixed partCreator, splitter writeWrapper) err
 func getMIMEHeader(a attachment, ctype string) textproto.MIMEHeader {
 	var disp string
 	var header textproto.MIMEHeader
+
+	if a.isXAttachment {
+		disp = fmt.Sprintf("attachment; filename=%q", a.filename)
+		cid := fmt.Sprintf("<%s>", a.cid)
+		header = textproto.MIMEHeader{
+			"Content-Type":              {ctype},
+			"Content-Disposition":       {disp},
+			"Content-Transfer-Encoding": {"base64"},
+			"Content-ID":                {cid},
+			"X-Attachment-Id":           {a.cid},
+			"MIME-Version":              {"1.0"},
+		}
+		return header
+	}
 
 	if a.inline {
 		disp = fmt.Sprintf("inline;\n\tfilename=%q", a.filename)

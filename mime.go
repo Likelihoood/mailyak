@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	"mime/quotedprintable"
 	"net/textproto"
 )
 
@@ -54,7 +53,7 @@ func (m *MailYak) buildMimeWithBoundaries(mb, ab string) (*bytes.Buffer, error) 
 	}
 	defer mixed.Close()
 
-	fmt.Fprintf(&buf, "Content-Type: multipart/mixed;\r\n\tboundary=\"%s\"; charset=UTF-8\r\n\r\n", mixed.Boundary())
+	fmt.Fprintf(&buf, "Content-Type: multipart/related;\r\n\tboundary=\"%s\"; charset=UTF-8\r\n\r\n", mixed.Boundary())
 
 	ctype := fmt.Sprintf("multipart/alternative;\r\n\tboundary=\"%s\"", ab)
 
@@ -147,13 +146,7 @@ func (m *MailYak) writeBody(w io.Writer, boundary string) error {
 		if err != nil {
 			return
 		}
-
-		var buf bytes.Buffer
-		qpw := quotedprintable.NewWriter(&buf)
-		_, err = qpw.Write(data)
-		qpw.Close()
-
-		_, err = part.Write(buf.Bytes())
+		_, err = part.Write(data)
 	}
 
 	writePart("text/plain", m.plain.Bytes())
